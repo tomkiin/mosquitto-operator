@@ -1,0 +1,166 @@
+# 1. Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mosquitto-operator
+---
+# 2. CRD
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: mosquittoes.mqtt.tomkiin.io
+spec:
+  group: mqtt.tomkiin.io
+  names:
+    kind: Mosquitto
+    listKind: MosquittoList
+    plural: mosquittoes
+    singular: mosquitto
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              conf:
+                type: string
+              count:
+                format: int32
+                type: integer
+              image:
+                type: string
+            required:
+            - conf
+            - count
+            - image
+            type: object
+          status:
+            properties:
+              clusterReloading:
+                type: boolean
+            required:
+            - clusterReloading
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+# 3. CR
+apiVersion: mqtt.tomkiin.io/v1
+kind: Mosquitto
+metadata:
+  name: instance
+  namespace: mosquitto-operator
+spec:
+  count: 3
+  image: eclipse-mosquitto:2.0.15
+  conf: |
+    listener 1883
+    allow_anonymous true
+---
+# 4. RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mosquitto-operator-user
+  namespace: mosquitto-operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mosquitto-operator-clusterrole
+rules:
+- apiGroups:
+  - mqtt.tomkiin.io
+  resources:
+  - mosquittoes
+  verbs:
+  - '*'
+- apiGroups:
+  - ''
+  resources:
+  - configmaps
+  - services
+  - pods
+  verbs:
+  - '*'
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mosquitto-operator-clusterrolebinding
+subjects:
+  - kind: ServiceAccount
+    name: mosquitto-operator-user
+    namespace: mosquitto-operator
+roleRef:
+  kind: ClusterRole
+  name: mosquitto-operator-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mosquitto-operator-role
+  namespace: mosquitto-operator
+rules:
+- apiGroups:
+  - mqtt.tomkiin.io
+  resources:
+  - mosquittoes
+  - mosquittoes/status
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mosquitto-operator-rolebinding
+  namespace: mosquitto-operator
+subjects:
+  - kind: ServiceAccount
+    name: mosquitto-operator-user
+    namespace: mosquitto-operator
+roleRef:
+  kind: Role
+  name: mosquitto-operator-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# 5. Manager
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto-operator
+  namespace: mosquitto-operator
+  labels:
+    app: mosquitto-operator
+spec:
+  selector:
+    matchLabels:
+      app: mosquitto-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mosquitto-operator
+    spec:
+      containers:
+      - name: mosquitto-operator
+        image: manager:0.0.1
+      serviceAccountName: mosquitto-operator-user
