@@ -59,7 +59,7 @@ func (m *MosquittoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	syncHandlers := []syncHandler{
 		m.syncConfigMap,
 		m.syncStatefulSet,
-		m.syncService,
+		m.syncHeadlessService,
 	}
 	for _, h := range syncHandlers {
 		if err := h(ctx, ins, log); err != nil {
@@ -136,7 +136,7 @@ func (m *MosquittoReconciler) syncStatefulSet(ctx context.Context, ins *mqttv1.M
 	return nil
 }
 
-func (m *MosquittoReconciler) syncService(ctx context.Context, ins *mqttv1.Mosquitto, log logr.Logger) error {
+func (m *MosquittoReconciler) syncHeadlessService(ctx context.Context, ins *mqttv1.Mosquitto, log logr.Logger) error {
 	svc := resource.CreateHeadlessService(ins)
 	if err := ctrl.SetControllerReference(ins, svc, m.Scheme); err != nil {
 		return err

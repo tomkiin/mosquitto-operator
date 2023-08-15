@@ -164,3 +164,19 @@ spec:
       - name: mosquitto-operator
         image: manager:0.0.1
       serviceAccountName: mosquitto-operator-user
+---
+# 6. Service
+kind: Service
+apiVersion: v1
+metadata:
+  name: mosquitto-svc
+  namespace: mosquitto-operator
+spec:
+  ports:
+    - name: mqtt-port
+      protocol: TCP
+      port: 1883
+      targetPort: 1883
+  selector:
+    app: mosquitto-cluster
+  type: ClusterIP
